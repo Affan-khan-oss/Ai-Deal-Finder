@@ -135,7 +135,7 @@ export default function HomePage() {
 
         <footer className="mt-8 text-center">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            © 2024 AI Deal Finder. Compare before you buy — prices update live from retailers.
+            © 2024 AI Deal Finder. Compare before you buy prices update live from retailers.
           </p>
         </footer>
       </main>
