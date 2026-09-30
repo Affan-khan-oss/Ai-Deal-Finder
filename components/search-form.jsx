@@ -78,13 +78,13 @@ export function SearchForm({ onSearchStart }) {
       <div className="mx-auto max-w-2xl text-center">
         <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[13px] font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          One search — 5 stores compared
+          All Search In Place
         </p>
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl md:text-5xl dark:text-white">
           Find the lowest price, instantly.
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-slate-600 md:text-base dark:text-slate-400">
-          Type a product once. We check live prices, delivery and offers side-by-side.
+          Type a product once. We check live prices delivery and offers side-by-side.
         </p>
       </div>
 

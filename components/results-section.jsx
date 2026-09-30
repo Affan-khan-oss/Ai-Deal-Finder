@@ -303,7 +303,7 @@ export function ResultsSection({ results, sessionId, onBackToSearch }) {
             <Mail className="h-5 w-5" aria-hidden="true" />
           </span>
           <h3 className="mt-3 text-xl font-bold">Get this comparison by email</h3>
-          <p className="mx-auto mt-1 max-w-md text-[15px] text-slate-600 dark:text-slate-400">Same product, every platform price and the best-pick — in your inbox.</p>
+          <p className="mx-auto mt-1 max-w-md text-[15px] text-slate-600 dark:text-slate-400">Same product, every platform price and the best-pick in your inbox.</p>
           <div className="mx-auto mt-5 flex max-w-md flex-col gap-2 sm:flex-row">
             <Input
               type="email"
