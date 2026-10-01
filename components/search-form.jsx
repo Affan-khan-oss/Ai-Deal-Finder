@@ -216,10 +216,10 @@ export function SearchForm({ onSearchStart }) {
                 <SelectValue placeholder="How soon?" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ASAP">ASAP — need it now</SelectItem>
-                <SelectItem value="urgent">Urgent — 1–2 days</SelectItem>
-                <SelectItem value="moderate">Moderate — within a week</SelectItem>
-                <SelectItem value="flexible">Flexible — best deal wins</SelectItem>
+                <SelectItem value="ASAP">ASAP need it now</SelectItem>
+                <SelectItem value="urgent">Urgent 1–2 days</SelectItem>
+                <SelectItem value="moderate">Moderate within a week</SelectItem>
+                <SelectItem value="flexible">Flexible best deal wins</SelectItem>
               </SelectContent>
             </Select>
           </div>
