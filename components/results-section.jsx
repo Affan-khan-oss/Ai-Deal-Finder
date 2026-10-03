@@ -202,8 +202,8 @@ export function ResultsSection({ results, sessionId, onBackToSearch }) {
                     </ul>
                   )}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(g.platforms || []).slice(0, 5).map((p) => (
-                      <Badge key={p.platform} variant="outline" className="text-xs font-medium">{PLATFORM_META[p.platform]?.label || p.platform}</Badge>
+                    {(g.platforms || []).slice(0, 5).map((p, pi) => (
+                      <Badge key={`${p.platform}-${p.url || "no-url"}-${p.price || 0}-${pi}`} variant="outline" className="text-xs font-medium">{PLATFORM_META[p.platform]?.label || p.platform}</Badge>
                     ))}
                   </div>
                 </div>
@@ -234,13 +234,13 @@ export function ResultsSection({ results, sessionId, onBackToSearch }) {
               </div>
 
               <CardContent className="space-y-2.5 bg-slate-50/60 p-4 sm:p-5 dark:bg-slate-950/40">
-                {g.platforms.map((p) => {
+                {g.platforms.map((p, pi) => {
                   const meta = PLATFORM_META[p.platform] || PLATFORM_META.google
                   const isBest = p.platform === g.bestPlatform && p.price === g.bestPrice
                   const diff = (p.price || 0) - (g.bestPrice || 0)
                   return (
                     <div
-                      key={p.platform}
+                      key={`${p.platform}-${p.url || "no-url"}-${p.price || 0}-${pi}`}
                       className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 transition hover:shadow-sm sm:grid sm:grid-cols-[170px_1fr_auto] sm:items-center dark:bg-slate-900 ${isBest ? "border-emerald-500 ring-1 ring-emerald-500/30" : "border-slate-200 dark:border-slate-800"}`}
                     >
                       <div className="flex items-center gap-2">

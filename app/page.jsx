@@ -6,7 +6,7 @@ import { SearchForm } from "@/components/search-form"
 import { ProgressSection } from "@/components/progress-section"
 import { ResultsSection } from "@/components/results-section"
 import { Button } from "@/components/ui/button"
-import { Scale, Sun, Moon, ShieldCheck } from "lucide-react"
+import { Sun, Moon, ShieldCheck } from "lucide-react"
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
@@ -102,9 +102,6 @@ export default function HomePage() {
             aria-label="AI Deal Finder - back to search"
             className="flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Scale className="h-5 w-5" aria-hidden="true" />
-            </span>
             <span className="text-left leading-tight">
               <span className="block text-[15px] font-bold tracking-tight">AI Deal Finder</span>
               <span className="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">

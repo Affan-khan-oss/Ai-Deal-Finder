@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, MapPin, Wallet, Gauge, Loader2, Sparkles } from "lucide-react"
+import { openChatWidget } from "@/components/chat-widget"
 
 const PLATFORMS = ["Amazon.in", "Flipkart", "Meesho", "Croma", "Reliance Digital"]
 
@@ -170,6 +171,15 @@ export function SearchForm({ onSearchStart }) {
               {q.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={openChatWidget}
+            aria-label="Open AI shopping assistant"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-slate-100 px-4 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-indigo-100 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-indigo-950 dark:hover:text-indigo-300"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Confused? Ask AI
+          </button>
         </div>
 
         {error && (
