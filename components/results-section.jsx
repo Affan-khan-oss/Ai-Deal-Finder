@@ -323,7 +323,7 @@ export function ResultsSection({ results, sessionId, onBackToSearch }) {
 
       {/* Toast viewport (use-toast) */}
       <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2">
-        {(toasts || []).map((t) => (
+        {(toasts || []).filter((t) => t.open !== false).map((t) => (
           <div key={t.id} className="pointer-events-auto flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
             <div className="min-w-0 flex-1">

@@ -14,7 +14,7 @@ export function openChatWidget() {
 const STARTER_SUGGESTIONS = [
   "Best phone under ₹25,000?",
   "Compare iPhone 15 vs Galaxy S24",
-  "Is 8GB RAM enough for a laptop?",
+  "Best Gaming Chair Under 7000",
 ]
 
 // All message sending lives in this ONE function: POSTs the full
