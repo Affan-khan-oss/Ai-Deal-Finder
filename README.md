@@ -65,20 +65,6 @@ The same phone or pair of shoes is often listed on several shopping sites at dif
 
 ---
 
-## 🖼️ Screenshots
-
-> Add your screenshots to a `docs/screenshots/` folder and update the paths below.
-
-| Home | Results |
-|---|---|
-| ![Home page](docs/screenshots/home.png) | ![Results page](docs/screenshots/results.png) |
-
-| Dark mode | AI assistant |
-|---|---|
-| ![Dark mode](docs/screenshots/dark.png) | ![Chat assistant](docs/screenshots/chat.png) |
-
----
-
 ## 🧰 Tech Stack
 
 | Area | Tools |
