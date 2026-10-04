@@ -146,16 +146,16 @@ export function ResultsSection({ results, sessionId, onBackToSearch }) {
 
       {/* Stats */}
       {groups.length > 0 && (
-        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-8 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
           {stats.map((s) => (
-            <Card key={s.label} className="rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
-                  <s.icon className="h-5 w-5" aria-hidden="true" />
+            <Card key={s.label} className="min-w-0 overflow-hidden rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
+              <CardContent className="flex min-w-0 items-center gap-2.5 p-3 sm:gap-3 sm:p-5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 sm:h-11 sm:w-11 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  <s.icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                 </span>
-                <span>
-                  <span className="block text-xl font-extrabold tracking-tight sm:text-2xl">{s.value}</span>
-                  <span className="block text-[13px] font-medium text-slate-500 dark:text-slate-400">{s.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-extrabold leading-tight tracking-tight tabular-nums sm:text-2xl">{s.value}</span>
+                  <span className="block text-xs font-medium leading-snug text-slate-500 sm:text-[13px] dark:text-slate-400">{s.label}</span>
                 </span>
               </CardContent>
             </Card>
