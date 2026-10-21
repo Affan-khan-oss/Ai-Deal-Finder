@@ -52,7 +52,7 @@ function rateLimited(ip) {
 
 // Calls your existing /api/search (POST { product, maxPrice }) and keeps only what the bot needs.
 // Kept small on purpose: Groq's free tier limits tokens per minute.
-async function searchProducts(query, origin) {
+async function searchProducts(query, origin, ip) {
   const key = query.trim().toLowerCase();
   if (!key) return "No search query given.";
 
@@ -62,7 +62,10 @@ async function searchProducts(query, origin) {
   try {
     const res = await fetch(`${origin}/api/search`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-forwarded-for": ip,
+      },
       // High maxPrice so the search never filters out expensive products.
       body: JSON.stringify({ product: query, maxPrice: "1000000" }),
     });
@@ -183,7 +186,7 @@ export async function POST(req) {
           try {
             args = JSON.parse(call.function?.arguments || "{}");
           } catch {}
-          result = await searchProducts(String(args.query || ""), origin);
+          result = await searchProducts(String(args.query || ""), origin, ip);
         } else {
           result = "Search limit reached for this message. Answer using the results you already have.";
         }
