@@ -1,12 +1,53 @@
 import { NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 
-function esc(s) {
-  return String(s ?? "")
+function escapeHtml(value) {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+const MAX_RESULTS = 20
+const MAX_NAME_LENGTH = 120
+const RATE_LIMIT_MAX = 3
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const rateLimitStore = new Map()
+
+function truncate(value, maxLength = MAX_NAME_LENGTH) {
+  return String(value ?? "").slice(0, maxLength)
+}
+
+function getClientIp(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0].trim()
+    if (firstIp) return firstIp
+  }
+  return "local"
+}
+
+function isRateLimited(ip) {
+  const now = Date.now()
+  const entry = rateLimitStore.get(ip)
+
+  if (!entry || entry.resetAt <= now) {
+    if (rateLimitStore.size >= 1000) {
+      for (const [key, value] of rateLimitStore) {
+        if (value.resetAt <= now) rateLimitStore.delete(key)
+      }
+    }
+    rateLimitStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return false
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) return true
+
+  entry.count += 1
+  return false
 }
 
 function inr(n) {
@@ -27,12 +68,26 @@ const PLATFORM_LABELS = {
 export async function POST(request) {
   try {
     const { email, sessionId, results } = await request.json()
-    if (!email) {
+    const normalizedEmail = typeof email === "string" ? email.trim() : ""
+    if (
+      !normalizedEmail ||
+      normalizedEmail.length > 254 ||
+      !EMAIL_REGEX.test(normalizedEmail)
+    ) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { error: "Please enter a valid email address" },
         { status: 400 }
       )
     }
+
+    const clientIp = getClientIp(request)
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      )
+    }
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -48,15 +103,21 @@ export async function POST(request) {
     let insights = {}
     let searchParams = {}
     if (Array.isArray(results)) {
-      flatDeals = results
+      flatDeals = results.slice(0, MAX_RESULTS)
     } else if (results && typeof results === "object") {
-      groups = Array.isArray(results.comparedProducts) ? results.comparedProducts : []
-      flatDeals = Array.isArray(results.deals) ? results.deals : []
+      groups = Array.isArray(results.comparedProducts)
+        ? results.comparedProducts.slice(0, MAX_RESULTS)
+        : []
+      flatDeals = Array.isArray(results.deals)
+        ? results.deals.slice(0, MAX_RESULTS)
+        : []
       insights = results.insights || {}
       searchParams = results.searchParams || {}
     }
 
-    const productName = searchParams.product || results?.query || "your product"
+    const productName = truncate(
+      searchParams.product || results?.query || "your product"
+    )
     const hasDeals = groups.length > 0 || flatDeals.length > 0
 
     let dealsHtml = ""
@@ -71,21 +132,21 @@ export async function POST(request) {
             .map(
               (p) => `
                 <tr>
-                  <td style="padding:8px;border:1px solid #ddd;">${esc(PLATFORM_LABELS[p.platform] || p.platform || "Store")}${p.seller ? `<br/><small style="color:#666;">${esc(p.seller)}</small>` : ""}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">${esc(inr(p.price))}${p.originalPrice > p.price ? `<br/><small style="color:#888;"><s>${esc(inr(p.originalPrice))}</s></small>` : ""}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">${esc(p.rating ?? "—")}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">${p.url ? `<a href="${esc(p.url)}">View deal</a>` : "—"}</td>
+                  <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(PLATFORM_LABELS[p.platform] || p.platform || "Store")}${p.seller ? `<br/><small style="color:#666;">${escapeHtml(p.seller)}</small>` : ""}</td>
+                  <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(inr(p.price))}${p.originalPrice > p.price ? `<br/><small style="color:#888;"><s>${escapeHtml(inr(p.originalPrice))}</s></small>` : ""}</td>
+                  <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(p.rating ?? "—")}</td>
+                  <td style="padding:8px;border:1px solid #ddd;">${p.url ? `<a href="${escapeHtml(p.url)}">View deal</a>` : "—"}</td>
                 </tr>
               `
             )
             .join("")
           return `
             <div style="margin:20px 0;padding:16px;border:1px solid #e5e5e5;border-radius:8px;">
-              <h3 style="margin:0 0 4px 0;">${gi + 1}. ${esc(g.name || flatDeals[0]?.title || productName)}</h3>
+              <h3 style="margin:0 0 4px 0;">${gi + 1}. ${escapeHtml(truncate(g.name || flatDeals[0]?.title || productName))}</h3>
               <p style="margin:4px 0;">
-                <strong>Best price: ${esc(inr(bestPrice))}</strong> on ${esc(bestLabel)}
-                ${g.mrp ? ` &nbsp; <small style="color:#666;"><s>${esc(inr(g.mrp))}</s></small>` : ""}
-                ${g.rating ? ` &nbsp; <small>Rating: ${esc(g.rating)}/5</small>` : ""}
+                <strong>Best price: ${escapeHtml(inr(bestPrice))}</strong> on ${escapeHtml(bestLabel)}
+                ${g.mrp ? ` &nbsp; <small style="color:#666;"><s>${escapeHtml(inr(g.mrp))}</s></small>` : ""}
+                ${g.rating ? ` &nbsp; <small>Rating: ${escapeHtml(g.rating)}/5</small>` : ""}
               </p>
               <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:8px;">
                 <thead>
@@ -108,9 +169,9 @@ export async function POST(request) {
           (deal, index) => `
             <tr>
               <td style="padding:8px;border:1px solid #ddd;">${index + 1}</td>
-              <td style="padding:8px;border:1px solid #ddd;">${esc(deal.title || deal.name || "Deal")}<br/><small style="color:#666;">${esc(PLATFORM_LABELS[deal.platform] || deal.platform || "")}</small></td>
-              <td style="padding:8px;border:1px solid #ddd;">${esc(typeof deal.price === "number" ? inr(deal.price) : deal.price || "N/A")}</td>
-              <td style="padding:8px;border:1px solid #ddd;">${deal.productUrl || deal.amazonUrl || deal.url ? `<a href="${esc(deal.productUrl || deal.amazonUrl || deal.url)}">View deal</a>` : "—"}</td>
+              <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(truncate(deal.title || deal.name || "Deal"))}<br/><small style="color:#666;">${escapeHtml(PLATFORM_LABELS[deal.platform] || deal.platform || "")}</small></td>
+              <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(typeof deal.price === "number" ? inr(deal.price) : deal.price || "N/A")}</td>
+              <td style="padding:8px;border:1px solid #ddd;">${deal.productUrl || deal.amazonUrl || deal.url ? `<a href="${escapeHtml(deal.productUrl || deal.amazonUrl || deal.url)}">View deal</a>` : "—"}</td>
             </tr>
           `
         )
@@ -132,15 +193,15 @@ export async function POST(request) {
 
     const summaryHtml = hasDeals
       ? `
-        <p>Found <strong>${groups.length || flatDeals.length}</strong> result(s) for "<strong>${esc(productName)}</strong>".</p>
-        ${insights.bestPrice ? `<p>Lowest price: <strong>${esc(inr(insights.bestPrice))}</strong>${insights.bestPlatform ? ` on ${esc(PLATFORM_LABELS[insights.bestPlatform] || insights.bestPlatform)}` : ""}</p>` : ""}
-        ${insights.maxSavings ? `<p>Max savings vs MRP: <strong>${esc(inr(insights.maxSavings))}</strong></p>` : ""}
+        <p>Found <strong>${groups.length || flatDeals.length}</strong> result(s) for "<strong>${escapeHtml(productName)}</strong>".</p>
+        ${insights.bestPrice ? `<p>Lowest price: <strong>${escapeHtml(inr(insights.bestPrice))}</strong>${insights.bestPlatform ? ` on ${escapeHtml(PLATFORM_LABELS[insights.bestPlatform] || insights.bestPlatform)}` : ""}</p>` : ""}
+        ${insights.maxSavings ? `<p>Max savings vs MRP: <strong>${escapeHtml(inr(insights.maxSavings))}</strong></p>` : ""}
       `
       : ""
 
     await transporter.sendMail({
       from: `"AI Deal Finder" <${process.env.GMAIL_USER}>`,
-      to: email,
+      to: normalizedEmail,
       subject: `Your AI Deal Finder Report - ${productName}`,
       html: `
         <div style="font-family: Arial, sans-serif;max-width:640px;">
@@ -150,7 +211,7 @@ export async function POST(request) {
 
           ${
             sessionId
-              ? `<p><strong>Session ID:</strong> ${esc(sessionId)}</p>`
+              ? `<p><strong>Session ID:</strong> ${escapeHtml(sessionId)}</p>`
               : ""
           }
           ${summaryHtml}
@@ -172,7 +233,9 @@ export async function POST(request) {
     return NextResponse.json(
       {
         error: "Failed to send email",
-        details: error.message,
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: error.message }
+          : {}),
       },
       { status: 500 }
     )
