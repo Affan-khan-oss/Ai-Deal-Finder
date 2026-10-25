@@ -1,13 +1,83 @@
 import { NextResponse } from "next/server"
 import { getMultiPlatformDeals } from "@/lib/platforms"
 
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const rateLimitStore = new Map()
+
+function getClientIp(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0].trim()
+    if (firstIp) return firstIp
+  }
+  return "local"
+}
+
+function isRateLimited(ip) {
+  const now = Date.now()
+  const recent = (rateLimitStore.get(ip) || []).filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
+  )
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    rateLimitStore.set(ip, recent)
+    return true
+  }
+
+  recent.push(now)
+  rateLimitStore.set(ip, recent)
+
+  if (rateLimitStore.size > 1000) {
+    for (const [key, timestamps] of rateLimitStore) {
+      if (
+        timestamps.length === 0 ||
+        now - timestamps[timestamps.length - 1] >= RATE_LIMIT_WINDOW_MS
+      ) {
+        rateLimitStore.delete(key)
+      }
+    }
+  }
+
+  return false
+}
+
+function validateProduct(value) {
+  if (typeof value !== "string") return null
+  const product = value.trim()
+  if (product.length < 2 || product.length > 100) return null
+  return product
+}
+
 export async function POST(request) {
   try {
-    const { product, maxPrice, location, urgency, sessionId } = await request.json()
-
-    if (!product?.trim()) {
-      return NextResponse.json({ error: "Product is required" }, { status: 400 })
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      )
     }
+    const product = validateProduct(body?.product)
+
+    if (!product) {
+      return NextResponse.json(
+        { error: "Please enter a valid product name" },
+        { status: 400 }
+      )
+    }
+
+    const clientIp = getClientIp(request)
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json(
+        { error: "Too many searches. Please wait a few minutes." },
+        { status: 429 }
+      )
+    }
+
+    const { maxPrice, location, urgency, sessionId } = body || {}
 
     console.log("Search request:", { product, maxPrice, location, urgency, sessionId })
 
@@ -46,18 +116,48 @@ export async function POST(request) {
     return NextResponse.json(results)
   } catch (error) {
     console.error("Search API error:", error)
-    return NextResponse.json({ error: "Search failed", details: error.message }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Search failed",
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: error.message }
+          : {}),
+      },
+      { status: 500 }
+    )
   }
 }
 
 // GET helper so you can test in browser: /api/search?q=iphone+15
 export async function GET(request) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
   const { searchParams } = new URL(request.url)
-  const q = searchParams.get("q") || "iPhone 15"
+  const product = validateProduct(
+    searchParams.get("product") ?? searchParams.get("q") ?? "iPhone 15"
+  )
+
+  if (!product) {
+    return NextResponse.json(
+      { error: "Please enter a valid product name" },
+      { status: 400 }
+    )
+  }
+
+  const clientIp = getClientIp(request)
+  if (isRateLimited(clientIp)) {
+    return NextResponse.json(
+      { error: "Too many searches. Please wait a few minutes." },
+      { status: 429 }
+    )
+  }
+
   const maxPrice = searchParams.get("maxPrice") || "100000"
-  const { deals, live, demo, comparedProducts } = await getMultiPlatformDeals(q, maxPrice)
+  const { deals, live, demo, comparedProducts } = await getMultiPlatformDeals(product, maxPrice)
   return NextResponse.json({
-    query: q,
+    query: product,
     live,
     demo: !!demo,
     count: deals.length,

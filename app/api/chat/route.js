@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getMultiPlatformDeals } from "@/lib/platforms";
 
 // Groq (free tier, OpenAI-compatible API). Models are configurable from .env.local.
 // If the main model is missing, rate-limited or errors, the fallback model is tried automatically.
@@ -50,9 +51,9 @@ function rateLimited(ip) {
   return recent.length > 15;
 }
 
-// Calls your existing /api/search (POST { product, maxPrice }) and keeps only what the bot needs.
+// Calls lib/platforms directly (no HTTP self-call) and keeps only what the bot needs.
 // Kept small on purpose: Groq's free tier limits tokens per minute.
-async function searchProducts(query, origin) {
+async function searchProducts(query) {
   const key = query.trim().toLowerCase();
   if (!key) return "No search query given.";
 
@@ -60,14 +61,8 @@ async function searchProducts(query, origin) {
   if (cached && Date.now() - cached.time < CACHE_MS) return cached.data;
 
   try {
-    const res = await fetch(`${origin}/api/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // High maxPrice so the search never filters out expensive products.
-      body: JSON.stringify({ product: query, maxPrice: "1000000" }),
-    });
-    if (!res.ok) return "Price search failed. Tell the user to try again.";
-    const r = await res.json();
+    // High maxPrice so the search never filters out expensive products.
+    const r = await getMultiPlatformDeals(query, "1000000");
 
     const deals = (r.deals || []).slice(0, 6).map((d) => ({
       platform: d.platform,
@@ -76,14 +71,23 @@ async function searchProducts(query, origin) {
       rating: d.rating,
     }));
 
-    const data = JSON.stringify({
+    const bestGroup = (r.comparedProducts || [])[0];
+    const payload = {
       note: r.demo
         ? "These are DEMO sample prices, not live. Tell the user clearly."
         : "Live prices in INR.",
-      bestPlatform: r.insights?.bestPlatform,
-      bestPrice: r.insights?.bestPrice,
+      bestPlatform: bestGroup?.bestPlatform,
+      bestPrice: bestGroup?.bestPrice,
       deals,
-    });
+    };
+
+    // Keep each tool result under ~8000 chars so it fits the free-tier context budget.
+    let data = JSON.stringify(payload);
+    while (data.length > 8000 && payload.deals.length > 0) {
+      payload.deals.pop();
+      data = JSON.stringify(payload);
+    }
+
     searchCache.set(key, { time: Date.now(), data });
     return data;
   } catch {
@@ -156,7 +160,6 @@ export async function POST(req) {
   while (history.length && history[0].role !== "user") history.shift();
   if (history.length === 0) return NextResponse.json({ error: "No user message" }, { status: 400 });
 
-  const origin = new URL(req.url).origin;
   const convo = [{ role: "system", content: SYSTEM }, ...history];
   let searchesUsed = 0;
 
@@ -183,7 +186,7 @@ export async function POST(req) {
           try {
             args = JSON.parse(call.function?.arguments || "{}");
           } catch {}
-          result = await searchProducts(String(args.query || ""), origin);
+          result = await searchProducts(String(args.query || ""));
         } else {
           result = "Search limit reached for this message. Answer using the results you already have.";
         }
