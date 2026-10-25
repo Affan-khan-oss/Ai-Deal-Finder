@@ -51,7 +51,15 @@ function validateProduct(value) {
 
 export async function POST(request) {
   try {
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      )
+    }
     const product = validateProduct(body?.product)
 
     if (!product) {
@@ -108,7 +116,15 @@ export async function POST(request) {
     return NextResponse.json(results)
   } catch (error) {
     console.error("Search API error:", error)
-    return NextResponse.json({ error: "Search failed", details: error.message }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Search failed",
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: error.message }
+          : {}),
+      },
+      { status: 500 }
+    )
   }
 }
 

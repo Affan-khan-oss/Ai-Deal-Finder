@@ -17,6 +17,37 @@ const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const rateLimitStore = new Map()
 
+const SAFE_URL_HOSTS = [
+  "amazon.in",
+  "flipkart.com",
+  "meesho.com",
+  "croma.com",
+  "reliancedigital.in",
+  "google.com",
+  "google.co.in",
+]
+
+// Only allow https links to known shopping domains (and their subdomains).
+function safeUrl(value) {
+  const raw = String(value ?? "").trim()
+  if (!raw) return ""
+
+  let url
+  try {
+    url = new URL(raw)
+  } catch {
+    return ""
+  }
+
+  if (url.protocol !== "https:") return ""
+
+  const hostname = url.hostname.toLowerCase()
+  const allowed = SAFE_URL_HOSTS.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+  )
+  return allowed ? url.href : ""
+}
+
 function truncate(value, maxLength = MAX_NAME_LENGTH) {
   return String(value ?? "").slice(0, maxLength)
 }
@@ -67,7 +98,16 @@ const PLATFORM_LABELS = {
 
 export async function POST(request) {
   try {
-    const { email, sessionId, results } = await request.json()
+    let payload
+    try {
+      payload = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      )
+    }
+    const { email, sessionId, results } = payload
     const normalizedEmail = typeof email === "string" ? email.trim() : ""
     if (
       !normalizedEmail ||
@@ -130,14 +170,17 @@ export async function POST(request) {
           const bestLabel = PLATFORM_LABELS[bestPlatform] || bestPlatform || "Best"
           const platformRows = platforms
             .map(
-              (p) => `
+              (p) => {
+                const url = safeUrl(p.url)
+                return `
                 <tr>
                   <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(PLATFORM_LABELS[p.platform] || p.platform || "Store")}${p.seller ? `<br/><small style="color:#666;">${escapeHtml(p.seller)}</small>` : ""}</td>
                   <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(inr(p.price))}${p.originalPrice > p.price ? `<br/><small style="color:#888;"><s>${escapeHtml(inr(p.originalPrice))}</s></small>` : ""}</td>
                   <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(p.rating ?? "—")}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">${p.url ? `<a href="${escapeHtml(p.url)}">View deal</a>` : "—"}</td>
+                  <td style="padding:8px;border:1px solid #ddd;">${url ? `<a href="${escapeHtml(url)}">View deal</a>` : "—"}</td>
                 </tr>
               `
+              }
             )
             .join("")
           return `
@@ -166,14 +209,17 @@ export async function POST(request) {
     } else if (flatDeals.length > 0) {
       const rows = flatDeals
         .map(
-          (deal, index) => `
+          (deal, index) => {
+            const url = safeUrl(deal.productUrl || deal.amazonUrl || deal.url)
+            return `
             <tr>
               <td style="padding:8px;border:1px solid #ddd;">${index + 1}</td>
               <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(truncate(deal.title || deal.name || "Deal"))}<br/><small style="color:#666;">${escapeHtml(PLATFORM_LABELS[deal.platform] || deal.platform || "")}</small></td>
               <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(typeof deal.price === "number" ? inr(deal.price) : deal.price || "N/A")}</td>
-              <td style="padding:8px;border:1px solid #ddd;">${deal.productUrl || deal.amazonUrl || deal.url ? `<a href="${escapeHtml(deal.productUrl || deal.amazonUrl || deal.url)}">View deal</a>` : "—"}</td>
+              <td style="padding:8px;border:1px solid #ddd;">${url ? `<a href="${escapeHtml(url)}">View deal</a>` : "—"}</td>
             </tr>
           `
+          }
         )
         .join("")
       dealsHtml = `
